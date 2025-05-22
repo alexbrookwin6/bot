@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import json
+import httpx
 from datetime import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
@@ -76,9 +77,16 @@ async def send_notifications(app):
                     except Exception as e:
                         logger.warning(f"Ошибка при отправке: {e}")
         await asyncio.sleep(60)
+        
+# 📤 Отключение старого Webhook (если был)
+async def delete_webhook():
+    async with httpx.AsyncClient() as client:
+        await client.post(f"https://api.telegram.org/bot{TOKEN}/deleteWebhook")
 
 # 🚀 Запуск
 async def main():
+    await delete_webhook()
+    
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
