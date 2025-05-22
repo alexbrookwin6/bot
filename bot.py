@@ -1,101 +1,57 @@
-import logging
-import asyncio
-import json
-from datetime import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
+import json
+import logging
+import asyncio
 
-# 🔧 НАСТРОЙКИ
+# Настройки
 TOKEN = "7827265617:AAEQvEsQE-v9gU0IpZZo7eUnUzjeqwawRM0"
 ADMIN_USERNAME = "alice_alekseeevna"
 EMPLOYEES_FILE = "employees.json"
 
-# 🔧 ЛОГИ
+# Логи
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 📦 ЗАГРУЗКА ДАННЫХ
+# Загрузка списка сотрудников
 def load_employees():
     with open(EMPLOYEES_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def save_employees(employees):
-    with open(EMPLOYEES_FILE, "w", encoding="utf-8") as f:
-        json.dump(employees, f, ensure_ascii=False, indent=2)
+# Сохранять не нужно для теста, только загрузка
 
-# ✅ /start
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    employees = load_employees()
-    for emp in employees:
-        if emp["username"] == user.username:
-            emp["chat_id"] = user.id
-            save_employees(employees)
-            await update.message.reply_text("Ты зарегистрирован. Жди уведомления перед сменой.")
-            return
-    await update.message.reply_text("Ты не в списке сотрудников.")
-
-# 🧪 /test — Тестовая рассылка
-async def test(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
+# Команда /test — отправить кнопки сотруднику
+async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("✅ Да", callback_data=f"yes|{user.username}|Тестовая точка"),
-            InlineKeyboardButton("❌ Нет", callback_data=f"no|{user.username}|Тестовая точка")
+            InlineKeyboardButton("✅ Да", callback_data="yes|test"),
+            InlineKeyboardButton("❌ Нет", callback_data="no|test")
         ]
     ])
-    await update.message.reply_text("Выходишь на смену? (тест)", reply_markup=keyboard)
+    await update.message.reply_text("Выходишь сегодня на смену?", reply_markup=keyboard)
 
-# 👇 Ответ на кнопку
+# Обработчик нажатия на кнопку
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    status, username, point = query.data.split("|")
-    symbol = "✅" if status == "yes" else "❌"
-    text = f"@{username} ({point}) — выходит {symbol}"
 
+    status, action = query.data.split("|")
+    user = query.from_user
+
+    symbol = "✅" if status == "yes" else "❌"
+    text = f"@{user.username} ответил: {symbol} на {action}"
+
+    # Найти чат id админа и отправить уведомление
     employees = load_employees()
     for emp in employees:
         if emp["username"] == ADMIN_USERNAME and emp.get("chat_id"):
             await context.bot.send_message(emp["chat_id"], text)
 
-# 📬 Рассылка утром
-async def send_notifications(app):
-    while True:
-        now = datetime.now()
-        current_time = now.strftime("%H:%M")
-
-        employees = load_employees()
-        for emp in employees:
-            if emp["chat_id"] and emp["open_time"]:
-                hour, minute = map(int, emp["open_time"].split(":"))
-                notify_time = (hour * 60 + minute) - 25
-                if notify_time < 0:
-                    continue
-
-                notif_hour = notify_time // 60
-                notif_minute = notify_time % 60
-                if current_time == f"{notif_hour:02d}:{notif_minute:02d}":
-                    keyboard = InlineKeyboardMarkup([
-                        [
-                            InlineKeyboardButton("✅ Да", callback_data=f"yes|{emp['username']}|{emp['point']}"),
-                            InlineKeyboardButton("❌ Нет", callback_data=f"no|{emp['username']}|{emp['point']}")
-                        ]
-                    ])
-                    try:
-                        await app.bot.send_message(chat_id=emp["chat_id"], text="Выходишь сегодня на смену?", reply_markup=keyboard)
-                    except Exception as e:
-                        logger.warning(f"Ошибка при отправке: {e}")
-        await asyncio.sleep(60)
-
-# 🚀 Запуск
+# Основная функция запуска бота
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("test", test))  # <--- ДОБАВИЛИ ЭТО
+    app.add_handler(CommandHandler("test", test_command))
     app.add_handler(CallbackQueryHandler(button_handler))
-
-    asyncio.create_task(send_notifications(app))
     await app.run_polling()
 
 import nest_asyncio
