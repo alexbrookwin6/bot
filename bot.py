@@ -1,96 +1,90 @@
 import logging
-import datetime
 import asyncio
+import json
+from datetime import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import (
-    ApplicationBuilder, CallbackQueryHandler,
-    CommandHandler, ContextTypes
-)
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
-# Токен и настройки
+# 🔧 НАСТРОЙКИ
 TOKEN = "7827265617:AAEQvEsQE-v9gU0IpZZo7eUnUzjeqwawRM0"
 ADMIN_USERNAME = "alice_alekseeevna"
-STAFF = [
-    {
-        "username": "alice_alekseeevna",
-        "chat_id": None,
-        "point": "Тестовая точка",
-        "open_time": "14:00"
-    }
-]
+EMPLOYEES_FILE = "employees.json"
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
-)
+# 🔧 ЛОГИ
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# /start
+# 📦 ЗАГРУЗКА ДАННЫХ
+def load_employees():
+    with open(EMPLOYEES_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_employees(employees):
+    with open(EMPLOYEES_FILE, "w", encoding="utf-8") as f:
+        json.dump(employees, f, ensure_ascii=False, indent=2)
+
+# ✅ /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    for staff in STAFF:
-        if staff["username"] == user.username:
-            staff["chat_id"] = user.id
-            await update.message.reply_text("Ты зарегистрирован как сотрудник. Жди уведомления утром.")
+    employees = load_employees()
+    for emp in employees:
+        if emp["username"] == user.username:
+            emp["chat_id"] = user.id
+            save_employees(employees)
+            await update.message.reply_text("Ты зарегистрирован. Жди уведомления перед сменой.")
             return
     await update.message.reply_text("Ты не в списке сотрудников.")
 
-# Кнопки
+# 👇 Ответ на кнопку
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
     status, username, point = query.data.split("|")
     symbol = "✅" if status == "yes" else "❌"
-    message = f"@{username} ({point}) — выходит {symbol}"
+    text = f"@{username} ({point}) — выходит {symbol}"
 
-    for staff in STAFF:
-        if staff["username"] == ADMIN_USERNAME and staff["chat_id"]:
-            await context.bot.send_message(chat_id=staff["chat_id"], text=message)
+    employees = load_employees()
+    for emp in employees:
+        if emp["username"] == ADMIN_USERNAME and emp.get("chat_id"):
+            await context.bot.send_message(emp["chat_id"], text)
 
-# Рассылка
-async def send_daily_notifications(app):
+# 📬 Рассылка утром
+async def send_notifications(app):
     while True:
-        now = datetime.datetime.now()
+        now = datetime.now()
         current_time = now.strftime("%H:%M")
-        print(f"Проверка времени: {current_time}")
 
-        for staff in STAFF:
-            if staff["chat_id"] and staff["open_time"] == "14:00" and current_time == "13:20":
-                keyboard = InlineKeyboardMarkup([
-                    [
-                        InlineKeyboardButton("✅ Да", callback_data=f"yes|{staff['username']}|{staff['point']}"),
-                        InlineKeyboardButton("❌ Нет", callback_data=f"no|{staff['username']}|{staff['point']}")
-                    ]
-                ])
-                try:
-                    await app.bot.send_message(
-                        chat_id=staff["chat_id"],
-                        text="Выходишь сегодня на смену?",
-                        reply_markup=keyboard
-                    )
-                except Exception as e:
-                    print(f"Ошибка при отправке: {e}")
+        employees = load_employees()
+        for emp in employees:
+            if emp["chat_id"] and emp["open_time"]:
+                hour, minute = map(int, emp["open_time"].split(":"))
+                notify_time = (hour * 60 + minute) - 25
+                if notify_time < 0:
+                    continue
+
+                notif_hour = notify_time // 60
+                notif_minute = notify_time % 60
+                if current_time == f"{notif_hour:02d}:{notif_minute:02d}":
+                    keyboard = InlineKeyboardMarkup([
+                        [
+                            InlineKeyboardButton("✅ Да", callback_data=f"yes|{emp['username']}|{emp['point']}"),
+                            InlineKeyboardButton("❌ Нет", callback_data=f"no|{emp['username']}|{emp['point']}")
+                        ]
+                    ])
+                    try:
+                        await app.bot.send_message(chat_id=emp["chat_id"], text="Выходишь сегодня на смену?", reply_markup=keyboard)
+                    except Exception as e:
+                        logger.warning(f"Ошибка при отправке: {e}")
         await asyncio.sleep(60)
 
-# Запуск
+# 🚀 Запуск
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    await app.bot.delete_webhook(drop_pending_updates=True)
-    asyncio.create_task(send_daily_notifications(app))
+    asyncio.create_task(send_notifications(app))
+    await app.run_polling()
 
-    print("Бот запускается...")
-    await app.initialize()
-    await app.start()
-    await app.updater.start_polling()
-    await app.updater.wait()
-
-if __name__ == "__main__":
-<<<<<<< HEAD
+if name == "__main__":
     asyncio.run(main())
-=======
-
->>>>>>> 4c87e622d0f1f6a5c1121046247ff95c0cf4b425
