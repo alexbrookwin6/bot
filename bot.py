@@ -45,7 +45,7 @@ async def send_daily_notifications(application):
         print(f"Проверка времени: {current_time}")
 
         for staff in STAFF:
-            if staff["chat_id"] and staff["open_time"] == "12:00" and now.hour == 11 and now.minute == 40:
+            if staff["chat_id"] and staff["open_time"] == "12:00" and now.hour == 11 and now.minute == 45:
                 keyboard = InlineKeyboardMarkup([
                     [InlineKeyboardButton("✅ Да", callback_data=f"yes|{staff['username']}|{staff['point']}"),
                      InlineKeyboardButton("❌ Нет", callback_data=f"no|{staff['username']}|{staff['point']}")]
@@ -80,7 +80,7 @@ async def post_init(application):
     asyncio.create_task(send_daily_notifications(application))
 
 # Основной запуск
-if name == "__main__":
+if __name__ == "__main__":
     app = ApplicationBuilder().token(TOKEN).post_init(post_init).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
