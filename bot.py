@@ -101,5 +101,5 @@ async def main():
 import nest_asyncio
 nest_asyncio.apply()
 
-if name == "__main__":
+if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(main())
