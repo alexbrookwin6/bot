@@ -56,7 +56,7 @@ async def send_daily_notifications(app):
                     )
                 except Exception as e:
                     print(f"Ошибка при отправке: {e}")
-        await asyncio.sleep(60)  # Проверять каждую минуту
+        await asyncio.sleep(60)
 
 # Обработка кнопок
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -84,12 +84,15 @@ async def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    # Запуск фона
     asyncio.create_task(send_daily_notifications(app))
 
     print("Бот запущен.")
-    app.run_polling()
+    await app.run_polling()
 
-if __name__ == '__main__':
-    import asyncio
-    asyncio.run(main())
+if __name__ == "__main__":
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(main())
+    else:
+        asyncio.create_task(main())
