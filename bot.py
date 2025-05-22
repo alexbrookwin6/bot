@@ -15,7 +15,7 @@ STAFF = [
         "username": "alice_alekseeevna",
         "chat_id": None,  # будет заполнено при первом запуске
         "point": "Тестовая точка",
-        "open_time": "11:00"
+        "open_time": "12:00"
     }
 ]
 
@@ -43,7 +43,7 @@ async def send_daily_notifications(app):
         now = datetime.datetime.now()
         current_time = now.strftime("%H:%M")
         for staff in STAFF:
-            if staff["chat_id"] and staff["open_time"] == "11:00" and current_time == "10:30":
+            if staff["chat_id"] and staff["open_time"] == "12:00" and current_time == "11:30":
                 keyboard = InlineKeyboardMarkup([
                     [InlineKeyboardButton("✅ Да", callback_data=f"yes|{staff['username']}|{staff['point']}"),
                      InlineKeyboardButton("❌ Нет", callback_data=f"no|{staff['username']}|{staff['point']}")]
