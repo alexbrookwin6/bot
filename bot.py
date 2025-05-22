@@ -89,4 +89,8 @@ async def main():
     await app.updater.wait()
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     asyncio.run(main())
+=======
+
+>>>>>>> 4c87e622d0f1f6a5c1121046247ff95c0cf4b425
