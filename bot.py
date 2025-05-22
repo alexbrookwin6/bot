@@ -91,15 +91,23 @@ async def send_notifications(app):
 # 🚀 Запуск
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
+    
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("test", test))  # <--- ДОБАВИЛИ ЭТО
     app.add_handler(CallbackQueryHandler(button_handler))
 
     asyncio.create_task(send_notifications(app))
-    await app.run_polling()
+    await app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        webhook_url=f"https://{os.environ['RENDER_EXTERNAL_URL'].strip('/')}/{TOKEN}"
+    )
 
 import nest_asyncio
 nest_asyncio.apply()
 
+import os
+PORT = int(os.environ.get("PORT", 8443))
+
 if __name__ == "__main__":
-    asyncio.get_event_loop().run_until_complete(main())
+    asyncio.run(main())
