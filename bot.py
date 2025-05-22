@@ -107,10 +107,7 @@ async def main():
     app.add_handler(CommandHandler("test", test_notify))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    asyncio.
-
-Алиса Алексеевна, [22.05.2025 21:37]
-create_task(send_notifications(app))
+    asyncio.create_task(send_notifications(app))
 
     await app.run_webhook(
         listen="0.0.0.0",
