@@ -1,7 +1,6 @@
 import logging
 import asyncio
 import json
-import httpx
 from datetime import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
@@ -35,6 +34,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Ты зарегистрирован. Жди уведомления перед сменой.")
             return
     await update.message.reply_text("Ты не в списке сотрудников.")
+
+# 🧪 /test — Тестовая рассылка
+async def test(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Да", callback_data=f"yes|{user.username}|Тестовая точка"),
+            InlineKeyboardButton("❌ Нет", callback_data=f"no|{user.username}|Тестовая точка")
+        ]
+    ])
+    await update.message.reply_text("Выходишь на смену? (тест)", reply_markup=keyboard)
 
 # 👇 Ответ на кнопку
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -77,18 +87,12 @@ async def send_notifications(app):
                     except Exception as e:
                         logger.warning(f"Ошибка при отправке: {e}")
         await asyncio.sleep(60)
-        
-# 📤 Отключение старого Webhook (если был)
-async def delete_webhook():
-    async with httpx.AsyncClient() as client:
-        await client.post(f"https://api.telegram.org/bot{TOKEN}/deleteWebhook")
 
 # 🚀 Запуск
 async def main():
-    await delete_webhook()
-    
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("test", test))  # <--- ДОБАВИЛИ ЭТО
     app.add_handler(CallbackQueryHandler(button_handler))
 
     asyncio.create_task(send_notifications(app))
@@ -97,5 +101,5 @@ async def main():
 import nest_asyncio
 nest_asyncio.apply()
 
-if __name__ == '__main__':
+if name == "__main__":
     asyncio.get_event_loop().run_until_complete(main())
