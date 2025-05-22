@@ -105,10 +105,13 @@ async def main():
 
     asyncio.create_task(send_notifications(app))
 
+    webhook_url = os.getenv("WEBHOOK_URL")
+
     await app.run_webhook(
         listen="0.0.0.0",
-        port=PORT,
-        webhook_url=f"https://{os.environ['RENDER_EXTERNAL_URL'].strip('/')}/{TOKEN}"
+        port=int(os.environ.get("PORT", 10000)),
+        webhook_url=webhook_url,
+        allowed_updates=Update.ALL_TYPES
     )
 
 # ✅ Запуск с nest_asyncio
