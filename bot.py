@@ -106,6 +106,7 @@ async def main():
     asyncio.create_task(send_notifications(app))
 
     webhook_url = os.getenv("WEBHOOK_URL")
+    await app.bot.set_webhook(webhook_url)
 
     await app.run_webhook(
         listen="0.0.0.0",
