@@ -1,33 +1,30 @@
 import logging
 import datetime
 import asyncio
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
-    ApplicationBuilder, ContextTypes,
-    CallbackQueryHandler, CommandHandler
+    ApplicationBuilder, CallbackQueryHandler,
+    CommandHandler, ContextTypes
 )
 
 # Токен и настройки
-TOKEN = "7827265617:AAHryeg05P_C4bGVn6toI6i6gAKhHSkSjzo"
+TOKEN = "7827265617:AAFXQ9CJkBS3YKnBiS8OPI1lLyff2RWOP-Q"
 ADMIN_USERNAME = "alice_alekseeevna"
 STAFF = [
     {
         "username": "alice_alekseeevna",
-        "chat_id": None,  # будет заполнено при первом запуске
+        "chat_id": None,
         "point": "Тестовая точка",
-        "open_time": "11:00"
+        "open_time": "14:00"
     }
 ]
 
-# Логгинг
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO
 )
 
-bot = Bot(token=TOKEN)
-
-# Команда /start
+# /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     for staff in STAFF:
@@ -37,16 +34,33 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
     await update.message.reply_text("Ты не в списке сотрудников.")
 
-# Рассылка утреннего вопроса
+# Кнопки
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    status, username, point = query.data.split("|")
+    symbol = "✅" if status == "yes" else "❌"
+    message = f"@{username} ({point}) — выходит {symbol}"
+
+    for staff in STAFF:
+        if staff["username"] == ADMIN_USERNAME and staff["chat_id"]:
+            await context.bot.send_message(chat_id=staff["chat_id"], text=message)
+
+# Рассылка
 async def send_daily_notifications(app):
     while True:
         now = datetime.datetime.now()
         current_time = now.strftime("%H:%M")
+        print(f"Проверка времени: {current_time}")
+
         for staff in STAFF:
-            if staff["chat_id"] and staff["open_time"] == "11:00" and current_time == "10:30":
+            if staff["chat_id"] and staff["open_time"] == "14:00" and current_time == "13:00":
                 keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("✅ Да", callback_data=f"yes|{staff['username']}|{staff['point']}"),
-                     InlineKeyboardButton("❌ Нет", callback_data=f"no|{staff['username']}|{staff['point']}")]
+                    [
+                        InlineKeyboardButton("✅ Да", callback_data=f"yes|{staff['username']}|{staff['point']}"),
+                        InlineKeyboardButton("❌ Нет", callback_data=f"no|{staff['username']}|{staff['point']}")
+                    ]
                 ])
                 try:
                     await app.bot.send_message(
@@ -56,39 +70,23 @@ async def send_daily_notifications(app):
                     )
                 except Exception as e:
                     print(f"Ошибка при отправке: {e}")
-        await asyncio.sleep(60)  # Проверять каждую минуту
+        await asyncio.sleep(60)
 
-# Обработка кнопок
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    data = query.data.split("|")
-    status, username, point = data
-    symbol = "✅" if status == "yes" else "❌"
-
-    message = f"@{username} ({point}) — выходит {symbol}"
-
-    admin_id = None
-    for staff in STAFF:
-        if staff["username"] == ADMIN_USERNAME:
-            admin_id = staff["chat_id"]
-
-    if admin_id:
-        await context.bot.send_message(chat_id=admin_id, text=message)
-
-# Основной запуск
+# Запуск
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    # Запуск фона
+    await app.bot.delete_webhook(drop_pending_updates=True)
     asyncio.create_task(send_daily_notifications(app))
 
-    print("Бот запущен.")
-    await app.run_polling()
+    print("Бот запускается...")
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+    await app.updater.wait()
 
-if name == "__main__":
+if __name__ == "__main__":
     asyncio.run(main())
