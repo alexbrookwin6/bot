@@ -1,4 +1,3 @@
-Алиса Алексеевна, [22.05.2025 21:37]
 import asyncio
 import json
 import logging
