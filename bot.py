@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import nest_asyncio
 from datetime import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
@@ -11,17 +12,17 @@ from telegram.ext import (
     ContextTypes,
 )
 
-# 🔧 НАСТРОЙКИ
+# 🔧 Настройки
 TOKEN = "7827265617:AAEQvEsQE-v9gU0IpZZo7eUnUzjeqwawRM0"
 ADMIN_USERNAME = "alice_alekseeevna"
 EMPLOYEES_FILE = "employees.json"
 PORT = int(os.environ.get("PORT", 8443))
 
-# 🔧 ЛОГИ
+# 🔧 Логгирование
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 📦 ЗАГРУЗКА ДАННЫХ
+# 📁 Работа с файлами
 def load_employees():
     with open(EMPLOYEES_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -30,7 +31,7 @@ def save_employees(employees):
     with open(EMPLOYEES_FILE, "w", encoding="utf-8") as f:
         json.dump(employees, f, ensure_ascii=False, indent=2)
 
-# ✅ /start
+# ✅ Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     employees = load_employees()
@@ -42,7 +43,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
     await update.message.reply_text("Ты не в списке сотрудников.")
 
-# 👇 Ответ на кнопку
+# 📬 Кнопки "Да" и "Нет"
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -55,7 +56,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if emp["username"] == ADMIN_USERNAME and emp.get("chat_id"):
             await context.bot.send_message(emp["chat_id"], text)
 
-# 📬 Рассылка утром
+# 🔁 Уведомления перед сменой
 async def send_notifications(app):
     while True:
         now = datetime.now()
@@ -64,27 +65,23 @@ async def send_notifications(app):
         employees = load_employees()
         for emp in employees:
             if emp.get("chat_id") and emp.get("open_time"):
-                try:
-                    hour, minute = map(int, emp["open_time"].split(":"))
-                    notify_time = (hour * 60 + minute) - 25
-                    if notify_time < 0:
-                        continue
-                    notif_hour = notify_time // 60
-                    notif_minute = notify_time % 60
-                    if current_time == f"{notif_hour:02d}:{notif_minute:02d}":
-                        keyboard = InlineKeyboardMarkup([
-                            [
-                                InlineKeyboardButton("✅ Да", callback_data=f"yes|{emp['username']}|{emp['point']}"),
-                                InlineKeyboardButton("❌ Нет", callback_data=f"no|{emp['username']}|{emp['point']}")
-                            ]
-                        ])
-                        await app.bot.send_message(chat_id=emp["chat_id"], text="Выходишь сегодня на смену?", reply_markup=keyboard)
-                except Exception as e:
-                    logger.warning(f"Ошибка при обработке {emp['username']}: {e}")
-
+                hour, minute = map(int, emp["open_time"].split(":"))
+                notify_time = (hour * 60 + minute) - 25
+                if notify_time < 0:
+                    continue
+                notif_hour = notify_time // 60
+                notif_minute = notify_time % 60
+                if current_time == f"{notif_hour:02d}:{notif_minute:02d}":
+                    keyboard = InlineKeyboardMarkup([
+                        [
+                            InlineKeyboardButton("✅ Да", callback_data=f"yes|{emp['username']}|{emp['point']}"),
+                            InlineKeyboardButton("❌ Нет", callback_data=f"no|{emp['username']}|{emp['point']}")
+                        ]
+                    ])
+                    await app.bot.send_message(chat_id=emp["chat_id"], text="Выходишь сегодня на смену?", reply_markup=keyboard)
         await asyncio.sleep(60)
 
-# 🧪 Команда для теста вручную
+# 🧪 Тест вручную
 async def test_notify(update: Update, context: ContextTypes.DEFAULT_TYPE):
     employees = load_employees()
     for emp in employees:
@@ -98,7 +95,7 @@ async def test_notify(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Тестовая проверка: выходишь на смену?", reply_markup=keyboard)
             return
 
-# 🚀 Запуск Webhook
+# 🚀 Запуск
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
@@ -114,5 +111,7 @@ async def main():
         webhook_url=f"https://{os.environ['RENDER_EXTERNAL_URL'].strip('/')}/{TOKEN}"
     )
 
+# ✅ Запуск с nest_asyncio
 if __name__ == "__main__":
-    asyncio.run(main())
+    nest_asyncio.apply()
+    asyncio.get_event_loop().run_until_complete(main())
