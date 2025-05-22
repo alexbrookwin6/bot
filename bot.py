@@ -15,7 +15,7 @@ STAFF = [
         "username": "alice_alekseeevna",
         "chat_id": None,  # будет заполнено при первом запуске
         "point": "Тестовая точка",
-        "open_time": "12:00"
+        "open_time": "12:30"
     }
 ]
 
@@ -40,9 +40,10 @@ async def send_daily_notifications(app):
     while True:
         now = datetime.datetime.now()
         current_time = now.strftime("%H:%M")
+        print(f"Проверка времени: {current_time}")
 
         for staff in STAFF:
-            if staff["chat_id"] and staff["open_time"] == "12:00" and current_time == "11:55":
+            if staff["chat_id"] and staff["open_time"] == "12:30" and current_time == "11:55":
                 keyboard = InlineKeyboardMarkup([
                     [
                         InlineKeyboardButton("✅ Да", callback_data=f"yes|{staff['username']}|{staff['point']}"),
@@ -57,7 +58,7 @@ async def send_daily_notifications(app):
                     )
                 except Exception as e:
                     print(f"Ошибка при отправке: {e}")
-        await asyncio.sleep(60)  # Проверять каждую минуту
+        await asyncio.sleep(60)
 
 # Обработка кнопок
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -85,14 +86,21 @@ async def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    # Удаляем Webhook перед polling
     await app.bot.delete_webhook(drop_pending_updates=True)
-
-    # Запуск фоновой задачи
     asyncio.create_task(send_daily_notifications(app))
 
     print("Бот запускается...")
     await app.run_polling()
 
+# Запуск с поддержкой уже запущенного event loop
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        # Если уже есть активный event loop (например, в Render)
+        loop.create_task(main())
+    else:
+        asyncio.run(main())
