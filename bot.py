@@ -8,7 +8,7 @@ from telegram.ext import (
 )
 
 # Токен и настройки
-TOKEN = "7827265617:AAHryeg05P_C4bGVn6toI6i6gAKhHSkSjzo"
+TOKEN = "7827265617:AAFXQ9CJkBS3YKnBiS8OPI1lLyff2RWOP-Q"
 ADMIN_USERNAME = "alice_alekseeevna"
 STAFF = [
     {
