@@ -59,7 +59,7 @@ async def send_daily_notifications(app):
         current_time = now.strftime("%H:%M")
         print(f"Проверка времени: {current_time}")
         for staff in STAFF:
-            if staff["chat_id"] and staff["open_time"] == "12:00" and current_time == "11:30":
+            if staff["chat_id"] and staff["open_time"] == "12:00" and now.minute == 40 and now.hour == 11:
                 keyboard = InlineKeyboardMarkup([
                     [InlineKeyboardButton("✅ Да", callback_data=f"yes|{staff['username']}|{staff['point']}"),
                      InlineKeyboardButton("❌ Нет", callback_data=f"no|{staff['username']}|{staff['point']}")]
